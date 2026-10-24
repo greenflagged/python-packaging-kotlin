@@ -100,6 +100,9 @@ that deployment in the Portal instead of publishing it.
    press **Publish**. It takes 10–30 minutes to appear on
    <https://repo1.maven.org/maven2/dev/greenflagged/python-packaging/>.
 6. Bump `gradle.properties` to the next `-SNAPSHOT` version.
+7. After the first release, have the Greenflagged registry consume the published
+   artifact for registry issue #482. That is the last item of #522's "Done when"
+   list.
 
 If validation fails, the job prints the Portal's reasons. Drop the failed
 deployment in the Portal, fix the cause, delete and re-push the tag (it never
