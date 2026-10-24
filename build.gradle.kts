@@ -113,9 +113,10 @@ publishing {
             pom {
                 name.set("python-packaging")
                 description.set(
-                    "Python packaging standards for the JVM: PEP 440 versions and specifiers, " +
-                        "PEP 508 requirements and markers, and PEP 503 name normalization. " +
-                        "A conformance-tested port of pypa/packaging.",
+                    "An unofficial Kotlin port of pypa/packaging's version, specifier and marker semantics, " +
+                        "not affiliated with or endorsed by the Python Packaging Authority (PyPA): " +
+                        "PEP 440 versions and specifiers, PEP 508 requirements and markers, " +
+                        "and PEP 503 name normalization, conformance-tested against pypa/packaging.",
                 )
                 url.set("https://github.com/greenflagged/python-packaging-kotlin")
                 inceptionYear.set("2026")

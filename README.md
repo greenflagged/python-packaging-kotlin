@@ -1,5 +1,9 @@
 # python-packaging for the JVM
 
+An **unofficial** Kotlin port of pypa/packaging's version, specifier and marker
+semantics. It is not affiliated with or endorsed by the Python Packaging
+Authority (PyPA).
+
 Python's packaging standards for Kotlin and Java: [PEP 440] versions and
 specifiers, [PEP 508] requirements and environment markers, and [PEP 503] name
 normalization, plus wheel and sdist filename parsing.
