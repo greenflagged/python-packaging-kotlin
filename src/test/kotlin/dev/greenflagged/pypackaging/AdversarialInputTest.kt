@@ -9,11 +9,11 @@ import org.junit.jupiter.api.Test
 import java.time.Duration
 
 /**
- * Untrusted metadata must not be able to make parsing slow, crash the JVM, or quietly
- * change a result. These are the worst shapes for the classic failure modes: regex
- * backtracking (ReDoS), deep recursion, huge numbers and combinatorial expansion, and
- * inputs just past each limit. Every parser is a linear scanner, so each case
- * finishes in milliseconds; the timeouts only catch regressions.
+ * Untrusted metadata must not be able to slow parsing down, crash the JVM, or quietly
+ * change a result. These tests feed in the worst-case input for each classic failure mode:
+ * regex backtracking (ReDoS), deep recursion, huge numbers, combinatorial expansion, and
+ * inputs just past each limit. Every parser is a linear scanner, so each case finishes in
+ * milliseconds. The timeouts exist only to catch regressions.
  */
 class AdversarialInputTest {
 
@@ -46,8 +46,8 @@ class AdversarialInputTest {
 
     @Test
     fun overLimitValuesNeverSilentlyChangeAResult() {
-        // Python evaluates these as version comparisons (true). A size limit must not turn
-        // them into string comparisons (false), or a dependency would escape vetting.
+        // Python evaluates these as version comparisons, which are true. A size limit must not
+        // turn them into string comparisons, which are false: a dependency would escape vetting.
         val longVersion = "0".repeat(1100) + "1"
         throws<LimitExceededException> { Marker.parse("python_version >= \"$longVersion\"").evaluate(env) }
         throws<LimitExceededException> { Marker.parse("python_version < \"9${"0".repeat(1100)}\"").evaluate(env) }

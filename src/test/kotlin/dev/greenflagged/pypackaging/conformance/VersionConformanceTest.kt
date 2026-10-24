@@ -23,12 +23,14 @@ import java.math.BigInteger
  * Test vectors and test logic are from pypa/packaging (Apache-2.0 OR BSD-2-Clause,
  * Copyright (c) Donald Stufft and individual contributors). See NOTICE.
  *
- * Mapping: Python `replace(v, ...)` / `__replace__` -> `v.toBuilder()...build()`;
- * `Version.from_parts(...)` -> `Version.builder()...build()`. Python's `epoch=None` and
- * `release=None` mean "the default" (0 and (0,)), which the builder spells `epoch(0)` and
- * `release(0)` since it has no nullable epoch/release setters. A pre letter such as
- * "Alpha" is normalized with Python's `normalize_pre` table ([preKind]) before reaching
- * the typed `PreReleaseKind` API.
+ * Mapping from Python to this port:
+ *   - `replace(v, ...)` / `__replace__` become `v.toBuilder()...build()`.
+ *   - `Version.from_parts(...)` becomes `Version.builder()...build()`.
+ *   - Python's `epoch=None` and `release=None` mean "use the default" (0 and (0,)). The
+ *     builder has no nullable epoch or release setters, so the tests call `epoch(0)` and
+ *     `release(0)` instead.
+ *   - A pre-release letter such as "Alpha" goes through Python's `normalize_pre` table
+ *     ([preKind]) before it reaches the typed `PreReleaseKind` API.
  *
  * Not ported:
  *   TestVersion.test_match_args — `__match_args__` / `_str` (Python-only).

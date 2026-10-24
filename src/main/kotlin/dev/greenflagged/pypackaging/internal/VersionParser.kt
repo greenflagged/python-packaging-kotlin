@@ -11,8 +11,8 @@ import java.math.BigInteger
  * A single-pass parser equivalent to packaging's `VERSION_PATTERN` (the possessive
  * variant used on Python 3.11.5+), matched with `re.VERBOSE | re.IGNORECASE` and
  * surrounded by `\s*`. Every quantifier in that pattern is either possessive or
- * cannot usefully give characters back, so a greedy left-to-right scan accepts
- * exactly the strings the regex fully matches and splits them into the same groups.
+ * cannot usefully give characters back. So a greedy left-to-right scan accepts
+ * exactly the strings the regex fully matches, and splits them into the same groups.
  * There is no backtracking, so parsing is linear in the input length.
  */
 internal object VersionParser {
@@ -157,10 +157,13 @@ internal object VersionParser {
 /**
  * Equivalent to packaging's `Specifier._specifier_regex_str` (compiled with
  * `re.VERBOSE | re.IGNORECASE`). [scan] returns the end of the match starting at
- * `pos`, or -1. It returns what `re.match` would: for this pattern the first match
- * in backtracking order is the greedy one, and whenever any path reaches a given
- * end of input the greedy path does too, so the same scan serves both
- * `Specifier(...)`'s full match and the requirement tokenizer's prefix match.
+ * `pos`, or -1. It returns what `re.match` would, for two reasons. First, for this
+ * pattern the first match in backtracking order is the greedy one, with one exception
+ * that [scanVersion] handles explicitly: an epoch `N!` with no release after it, where
+ * the regex backtracks and takes `N` as the release. Second, whenever
+ * any path reaches a given end of input, the greedy path does too. So the same scan
+ * serves both `Specifier(...)`'s full match and the requirement tokenizer's prefix
+ * match.
  */
 internal object SpecifierScanner {
 

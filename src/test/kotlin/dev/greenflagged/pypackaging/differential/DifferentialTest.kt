@@ -18,7 +18,6 @@ import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.JsonPrimitive
 import kotlinx.serialization.json.booleanOrNull
 import kotlinx.serialization.json.buildJsonObject
-import kotlinx.serialization.json.contentOrNull
 import kotlinx.serialization.json.jsonArray
 import kotlinx.serialization.json.jsonObject
 import kotlinx.serialization.json.jsonPrimitive
@@ -296,13 +295,10 @@ class DifferentialTest {
         buildJsonObject { put("error", errorName(e)) }
     }
 
+    // InvalidVersionException -> "InvalidVersion", matching Python's exception class names.
     private fun errorName(e: PackagingException): String = e::class.simpleName!!.removeSuffix("Exception")
-        .let { if (it == "UndefinedEnvironmentName" || it == "UndefinedComparison") it else it }
 
     private companion object {
         val PRERELEASE_OPTIONS = listOf(null to "None", true to "True", false to "False")
-
-        @Suppress("unused")
-        fun JsonElement.contentOrNull(): String? = (this as? JsonPrimitive)?.contentOrNull
     }
 }

@@ -9,5 +9,6 @@ Please report vulnerabilities privately through GitHub's
 not in a public issue. Include the input that causes the problem if you can.
 
 A difference in behaviour from Python `packaging` 26.3 that is not listed under
-"Known differences" in the README counts as a bug. If it affects what a registry
-would accept, treat it as a security report.
+"Known differences" in the README counts as a bug. If it changes what a package
+index, installer or vetting tool built on this library would accept, treat it as
+a security report.

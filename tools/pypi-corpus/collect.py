@@ -2,8 +2,8 @@
 
 Fetches every release version string of about 50 widely used PyPI projects from
 PyPI's JSON API, adds hand-picked edge cases, and draws random ordering pairs.
-Answers come from the installed packaging, which tools/pypi-corpus/regenerate.py
-then recomputes with the pinned version.
+The answers in the output come from whichever packaging is installed. Run
+tools/pypi-corpus/regenerate.py afterwards to recompute them with the pinned version.
 
 Usage: python3 -I tools/pypi-corpus/collect.py corpus.json
        python3 -I tools/pypi-corpus/regenerate.py corpus.json src/test/resources/pypi-corpus.json.gz

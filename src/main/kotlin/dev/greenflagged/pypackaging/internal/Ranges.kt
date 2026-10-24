@@ -11,8 +11,8 @@ import java.math.BigInteger
  *
  * Python compares `Version` and `BoundaryVersion` objects with each other through
  * reflected operators and `functools.total_ordering`. The functions [ptLt], [ptGt],
- * [ptEq] and [ptGe] spell those semantics out case by case so this port gives the
- * same answers, including the asymmetric ones.
+ * [ptEq] and [ptGe] spell those semantics out case by case. This port therefore gives
+ * the same answers, including the asymmetric ones.
  */
 
 internal enum class BoundaryKind { AFTER_LOCALS, AFTER_POSTS }
@@ -40,8 +40,9 @@ private fun sameReleaseAndPre(version: Version, trimmed: List<BigInteger>, other
 internal class BoundaryVersion(val version: Version, val kind: BoundaryKind) {
     private val trimmed = trimRelease(version.release)
 
-    // Order key: version's key, but with the post fields forced to (1, +inf) for AFTER_POSTS,
-    // and the local segment ignored (Python appends +inf in its place).
+    // Order key: the version's key without its local segment (Python appends +inf in its
+    // place). For AFTER_POSTS, compareTo below also treats the post fields as (1, +inf)
+    // and the dev fields as (1, 0), as Python's _order_key does.
     private val key: CmpKey = CmpKey.of(version).let { k ->
         CmpKey(k.epoch, k.release, k.preRank, k.preN, k.postRank, k.postN, k.devRank, k.devN, null)
     }

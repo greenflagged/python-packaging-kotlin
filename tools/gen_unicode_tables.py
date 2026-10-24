@@ -73,9 +73,10 @@ def lower_pairs():
     return flat
 
 
-# Python exposes Cased and Case_Ignorable only through str.lower()'s final-sigma rule:
-#   "A" + c + SIGMA is final iff c is case-ignorable or cased;
-#   "A" + SIGMA + c is final iff c is case-ignorable or not cased.
+# Python exposes the Cased and Case_Ignorable properties only through the final-sigma
+# rule of str.lower(). Lowercasing a capital sigma (SIGMA) gives the final form when:
+#   "A" + c + SIGMA: c is case-ignorable or cased;
+#   "A" + SIGMA + c: c is case-ignorable or not cased.
 def final(s, index):
     return s.lower()[index] == "\u03c2"
 

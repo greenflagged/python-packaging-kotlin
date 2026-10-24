@@ -69,7 +69,8 @@ internal fun isAsciiAlnumIgnoreCase(c: Char): Boolean = c in '0'..'9' || c in 'a
  * Matches the lowercase ASCII keyword [kw] at [pos] the way Python's `re.IGNORECASE`
  * does. With [unicode] false the pattern was in an `(?a:...)` group, so only ASCII
  * case folds apply. With [unicode] true Python also folds U+0130 and U+0131 to `i`,
- * and U+017F to `s` (the only extra folds for the letters packaging's keywords use).
+ * and U+017F to `s`. These are the only extra folds for the letters that packaging's
+ * keywords use.
  * Returns the end index, or -1.
  */
 internal fun matchKeyword(s: String, pos: Int, kw: String, unicode: Boolean): Int {
@@ -94,8 +95,8 @@ private fun isCased(cp: Int): Boolean = inRanges(PY_CASED_RANGES, cp)
 
 /**
  * Python's `str.lower()`, from tables pinned to Python's Unicode data rather than the
- * JVM's: full lowercase mapping (U+0130 becomes "i\u0307"), and U+03A3 becomes final
- * sigma when preceded by a cased letter and not followed by one, ignoring
+ * JVM's. It uses the full lowercase mapping (U+0130 becomes "i\u0307"). U+03A3 becomes
+ * final sigma when a cased letter precedes it and none follows it, ignoring
  * case-ignorable characters in between (CPython's `handle_capital_sigma`).
  */
 internal fun pyLower(s: String): String {

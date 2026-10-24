@@ -30,7 +30,7 @@ These steps need the owner's accounts and keys. Do them once.
 4. Wait for DNS to propagate. You can check with `dig +short TXT greenflagged.dev`.
    Then press **Verify Namespace**. The namespace must show as *Verified*.
 5. Go to **Account → Generate User Token**. Keep the token's username and
-   password; they are used in step 3 below. This is not your login password.
+   password; they are used in section 3 below. This is not your login password.
 
 ### 2. GPG signing key
 

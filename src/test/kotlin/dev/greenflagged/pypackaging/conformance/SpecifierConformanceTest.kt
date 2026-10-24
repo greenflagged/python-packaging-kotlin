@@ -80,10 +80,11 @@ class SpecifierConformanceTest {
             else -> error("bad item $v")
         }
 
-        // Python's filter() takes a mixed iterable of str and Version. The Kotlin API has
-        // filter (strings), filterVersions and filterBy; a mixed list goes through filterBy
-        // with toString as the key (str(Version) is what Python matches `===` against, and it
-        // re-parses to an equal Version for every other operator).
+        // Python's filter() accepts a mixed iterable of str and Version. The Kotlin API has
+        // three methods instead: filter (strings), filterVersions and filterBy. A mixed list
+        // goes through filterBy with toString as the key. That is safe because str(Version)
+        // is what Python matches `===` against, and for every other operator it re-parses
+        // to an equal Version.
         @Suppress("UNCHECKED_CAST")
         fun Specifier.filterAny(xs: List<Any>, pre: Boolean? = null): List<Any> = when {
             xs.all { it is String } -> filter(xs as List<String>, pre)
@@ -499,8 +500,9 @@ class SpecifierConformanceTest {
             assertEquals("<5.0,>=1.0", result.toString())
         }
 
-        // Python's SpecifierSet == Specifier / == str coerce the other side to a SpecifierSet;
-        // in Kotlin that coercion is explicit (SpecifierSet.of / parse), so all five forms are these two.
+        // In Python, `SpecifierSet == Specifier` and `SpecifierSet == str` coerce the other side
+        // to a SpecifierSet. Kotlin makes that coercion explicit (SpecifierSet.of / parse),
+        // so the five upstream forms reduce to these two tests.
         @TestFactory
         fun comparisonTrue() = dyn("TestSpecifierSet.test_comparison_true") {
             val o = op(it["op"])

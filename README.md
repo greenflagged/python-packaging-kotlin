@@ -127,8 +127,9 @@ one, because Python would have accepted the input.
   survive. Compare wheel and sdist names against the project's validated name.
 - `Requirement.url` is not validated, as in Python. It can contain any scheme
   and control characters. Reject direct references, or validate them yourself,
-  and never log them raw. Report vulnerabilities as described in
-[SECURITY.md](SECURITY.md).
+  and never log them raw.
+
+Report vulnerabilities as described in [SECURITY.md](SECURITY.md).
 
 ## Conformance
 
@@ -149,8 +150,8 @@ Three independent checks, all run in CI:
    evaluation across environments, and exact error messages. `DifferentialTest`
    then requires identical results. CI runs a fixed seed and a fresh seed on
    every push to `main`, every pull request, and weekly.
-3. **Real PyPI versions.** 7,645 version strings published on PyPI and 202,916
-   ordering pairs, with answers from Python.
+3. **Real PyPI versions.** 7,645 version strings published on PyPI (collected
+   October 2026) and 202,916 ordering pairs, with answers from Python.
 
 ### Known differences from Python
 
@@ -198,9 +199,10 @@ Each of these is deliberate:
 
 Apache-2.0. See [LICENSE](LICENSE) and [NOTICE](NOTICE). The generated Unicode
 tables are derived from Unicode data under [LICENSE-UNICODE](LICENSE-UNICODE).
-This is a derivative
-work of pypa/packaging (Apache-2.0 OR BSD-2-Clause, Copyright (c) Donald Stufft
-and individual contributors), whose test vectors are included with attribution.
+
+This is a derivative work of pypa/packaging (Apache-2.0 OR BSD-2-Clause,
+Copyright (c) Donald Stufft and individual contributors), whose test vectors
+are included with attribution.
 
 [PEP 440]: https://peps.python.org/pep-0440/
 [PEP 508]: https://peps.python.org/pep-0508/
