@@ -1,0 +1,28 @@
+python-packaging (dev.greenflagged:python-packaging)
+Copyright 2026 Greenflagged
+
+This product is licensed under the Apache License, Version 2.0 (see LICENSE).
+
+This product includes software derived from pypa/packaging
+(https://github.com/pypa/packaging), version 26.3,
+Copyright (c) Donald Stufft and individual contributors.
+pypa/packaging is dual-licensed under the Apache License, Version 2.0
+and the BSD 2-Clause License; this product uses it under the Apache
+License, Version 2.0.
+
+Derived material:
+  * The algorithms for PEP 440 version parsing and ordering, specifier
+    matching (including the interval logic of packaging/_ranges.py),
+    PEP 508 requirement and marker parsing and evaluation, and name and
+    filename normalization are ports of the corresponding pypa/packaging
+    modules to Kotlin.
+  * The conformance test vectors in src/test/resources/pypa/ were
+    extracted from pypa/packaging's tests/test_version.py,
+    test_specifiers.py, test_requirements.py, test_markers.py and
+    test_utils.py by tools/harvest_pypa_vectors.py, and the tests in
+    src/test/kotlin/dev/greenflagged/pypackaging/conformance/ port the
+    corresponding upstream test functions.
+
+The Unicode tables in src/main/kotlin/dev/greenflagged/pypackaging/internal/
+PyUnicodeTables.kt are generated from the Unicode Character Database as
+exposed by CPython's unicodedata module (Unicode License v3).
