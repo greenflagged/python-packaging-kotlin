@@ -1,10 +1,12 @@
 """Regenerate the Unicode tables in PyUnicodeTables.kt from the running Python.
 
-Two Python behaviours depend on Unicode character properties:
+Three Python behaviours depend on Unicode character properties:
 
 * ``re`` treats a character as a word character (``\\w``, and so for ``\\b``)
   when ``str.isalnum()`` is true or it is ``_``.
 * ``repr()`` escapes characters for which ``str.isprintable()`` is false.
+* ``str.lower()`` uses the full Unicode lowercase mapping, with U+03A3 becoming
+  final sigma based on the Cased and Case_Ignorable properties around it.
 
 Java's equivalents depend on the JVM's Unicode version, and for ``\\b`` on the
 JDK release, so these tables pin the Python behaviour instead.
@@ -53,3 +55,44 @@ emit(
     "Inclusive [start, end] code point ranges for which Python's `str.isprintable()` is true.",
     ranges(lambda ch: ch.isprintable()),
 )
+
+
+def lower_pairs():
+    flat = []
+    for c in range(0x110000):
+        ch = chr(c)
+        if c == 0x3A3:
+            continue  # context-dependent; handled in code
+        low = ch.lower()
+        if low == ch:
+            continue
+        if len(low) != 1:
+            # Only U+0130 has a multi-character lowercase mapping; PyText.kt special-cases it.
+            assert c == 0x130 and low == "i\u0307", (hex(c), low)
+            continue
+        flat += [c, ord(low)]
+    return flat
+
+
+# Python exposes Cased and Case_Ignorable only through str.lower()'s final-sigma rule:
+#   "A" + c + SIGMA is final iff c is case-ignorable or cased;
+#   "A" + SIGMA + c is final iff c is case-ignorable or not cased.
+def final(s, index):
+    return s.lower()[index] == "\u03c2"
+
+
+def ignorable(ch):
+    return final("A" + ch + "\u03a3", -1) and final("A\u03a3" + ch, 1)
+
+
+def cased(ch):
+    return not ignorable(ch) and final("A" + ch + "\u03a3", -1)
+
+
+emit(
+    "PY_LOWER_PAIRS",
+    "Flattened (code point, lowercase code point) pairs: Python's single-character `str.lower()` mappings.",
+    lower_pairs(),
+)
+emit("PY_CASE_IGNORABLE_RANGES", "Ranges with the Case_Ignorable property, as Python's `str.lower()` sees it.", ranges(ignorable))
+emit("PY_CASED_RANGES", "Ranges of non-case-ignorable Cased characters, as Python's `str.lower()` sees it.", ranges(cased))

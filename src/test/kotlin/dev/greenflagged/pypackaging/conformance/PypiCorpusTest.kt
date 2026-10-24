@@ -1,0 +1,60 @@
+package dev.greenflagged.pypackaging.conformance
+
+import dev.greenflagged.pypackaging.Version
+import kotlinx.serialization.json.Json
+import kotlinx.serialization.json.booleanOrNull
+import kotlinx.serialization.json.int
+import kotlinx.serialization.json.jsonArray
+import kotlinx.serialization.json.jsonObject
+import kotlinx.serialization.json.jsonPrimitive
+import org.junit.jupiter.api.Assertions.assertEquals
+import org.junit.jupiter.api.Assertions.assertTrue
+import org.junit.jupiter.api.Test
+import java.util.zip.GZIPInputStream
+
+/**
+ * Real-world versions: every release version of ~50 popular PyPI projects plus edge cases
+ * (7,645 strings) and 202,916 ordering pairs, with answers from Python packaging.
+ * Regenerate with tools/pypi-corpus/regenerate.py.
+ */
+class PypiCorpusTest {
+    private val doc = GZIPInputStream(javaClass.getResourceAsStream("/pypi-corpus.json.gz")!!).use {
+        Json.parseToJsonElement(it.reader(Charsets.UTF_8).readText()).jsonObject
+    }
+
+    @Test
+    fun parsesAndNormalizesLikePython() {
+        val failures = ArrayList<String>()
+        val rows = doc["rows"]!!.jsonArray
+        for (row in rows.map { it.jsonObject }) {
+            val input = row["v"]!!.jsonPrimitive.content
+            val parsed = Version.parseOrNull(input)
+            if (row["ok"]!!.jsonPrimitive.booleanOrNull == true) {
+                val norm = row["norm"]!!.jsonPrimitive.content
+                val pre = row["pre"]!!.jsonPrimitive.booleanOrNull
+                if (parsed == null || parsed.toString() != norm || parsed.isPrerelease != pre) {
+                    failures.add("$input: python=$norm/pre=$pre kotlin=$parsed/pre=${parsed?.isPrerelease}")
+                }
+            } else if (parsed != null) {
+                failures.add("$input: python rejects, kotlin parsed $parsed")
+            }
+        }
+        assertTrue(rows.size > 7000)
+        assertEquals(emptyList<String>(), failures.take(20), "${failures.size} failures")
+    }
+
+    @Test
+    fun ordersLikePython() {
+        val failures = ArrayList<String>()
+        val pairs = doc["pairs"]!!.jsonArray
+        for (pair in pairs.map { it.jsonArray }) {
+            val a = Version.parse(pair[0].jsonPrimitive.content)
+            val b = Version.parse(pair[1].jsonPrimitive.content)
+            val expected = pair[2].jsonPrimitive.int
+            if (Integer.signum(a.compareTo(b)) != expected) failures.add("$a vs $b: python=$expected kotlin=${a.compareTo(b)}")
+            if ((expected == 0) != (a == b) || (expected == 0 && a.hashCode() != b.hashCode())) failures.add("$a vs $b: equality/hash")
+        }
+        assertTrue(pairs.size > 200_000)
+        assertEquals(emptyList<String>(), failures.take(20), "${failures.size} failures")
+    }
+}

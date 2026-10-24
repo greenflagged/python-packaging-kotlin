@@ -1,7 +1,5 @@
 package dev.greenflagged.pypackaging.internal
 
-import java.util.Locale
-
 /*
  * Python string semantics that packaging relies on. Python strings are sequences of
  * code points; Kotlin strings are UTF-16. Every helper here works on UTF-16 indices
@@ -86,12 +84,62 @@ internal fun matchKeyword(s: String, pos: Int, kw: String, unicode: Boolean): In
     return pos + kw.length
 }
 
-/** Python's `str.lower()`, approximated by the JVM's locale-independent full lowercase mapping. */
+private val LOWER_MAP: Map<Int, Int> = HashMap<Int, Int>(PY_LOWER_PAIRS.size).also { m ->
+    for (k in PY_LOWER_PAIRS.indices step 2) m[PY_LOWER_PAIRS[k]] = PY_LOWER_PAIRS[k + 1]
+}
+
+private fun isCaseIgnorable(cp: Int): Boolean = inRanges(PY_CASE_IGNORABLE_RANGES, cp)
+
+private fun isCased(cp: Int): Boolean = inRanges(PY_CASED_RANGES, cp)
+
+/**
+ * Python's `str.lower()`, from tables pinned to Python's Unicode data rather than the
+ * JVM's: full lowercase mapping (U+0130 becomes "i\u0307"), and U+03A3 becomes final
+ * sigma when preceded by a cased letter and not followed by one, ignoring
+ * case-ignorable characters in between (CPython's `handle_capital_sigma`).
+ */
 internal fun pyLower(s: String): String {
+    var needsWork = false
     for (c in s) {
-        if (c.code >= 0x80 || c in 'A'..'Z') return s.lowercase(Locale.ROOT)
+        if (c.code >= 0x80 || c in 'A'..'Z') {
+            needsWork = true
+            break
+        }
     }
-    return s
+    if (!needsWork) return s
+    val sb = StringBuilder(s.length)
+    var i = 0
+    while (i < s.length) {
+        val cp = s.codePointAt(i)
+        when (cp) {
+            0x130 -> sb.append("i\u0307")
+            0x3A3 -> sb.append(if (isFinalSigma(s, i)) '\u03C2' else '\u03C3')
+            else -> sb.appendCodePoint(LOWER_MAP[cp] ?: cp)
+        }
+        i += Character.charCount(cp)
+    }
+    return sb.toString()
+}
+
+private fun isFinalSigma(s: String, index: Int): Boolean {
+    var j = index
+    var before = -1
+    while (j > 0) {
+        val cp = s.codePointBefore(j)
+        j -= Character.charCount(cp)
+        if (!isCaseIgnorable(cp)) {
+            before = cp
+            break
+        }
+    }
+    if (before < 0 || !isCased(before)) return false
+    j = index + 1
+    while (j < s.length) {
+        val cp = s.codePointAt(j)
+        if (!isCaseIgnorable(cp)) return !isCased(cp)
+        j += Character.charCount(cp)
+    }
+    return true
 }
 
 /** Python's `repr()` of a `str`. */

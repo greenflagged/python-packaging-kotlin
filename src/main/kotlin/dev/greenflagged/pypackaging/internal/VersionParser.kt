@@ -192,10 +192,11 @@ internal object SpecifierScanner {
         if (i < n && (s[i] == 'v' || s[i] == 'V')) i++
         var j = scanDigits(s, i)
         if (j == i) return -1
+        // (?:[0-9]+!)? is not possessive here: if no release follows "N!", the regex
+        // backtracks, skips the epoch, and takes N as the release.
         if (j < n && s[j] == '!') {
-            i = j + 1
-            j = scanDigits(s, i)
-            if (j == i) return -1
+            val k = scanDigits(s, j + 1)
+            if (k > j + 1) j = k
         }
         i = j
         var components = 1

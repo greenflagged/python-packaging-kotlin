@@ -7,3 +7,4 @@ out/
 .venv/
 __pycache__/
 local.properties
+.claude/
