@@ -81,17 +81,13 @@ public class Requirement private constructor(
         /**
          * Parses a PEP 508 requirement string.
          *
-         * @throws InvalidRequirementException if [requirement] is not valid, or is longer than
-         *   [Limits.MAX_REQUIREMENT_LENGTH]. The message matches Python's, including the
-         *   position marker line.
+         * @throws InvalidRequirementException if [requirement] is not valid. The message matches
+         *   Python's, including the position marker line.
+         * @throws LimitExceededException if it, or a part of it, exceeds a [Limits] bound.
          */
         @JvmStatic
         public fun parse(requirement: String): Requirement {
-            if (requirement.length > Limits.MAX_REQUIREMENT_LENGTH) {
-                throw InvalidRequirementException(
-                    "Requirement is longer than ${Limits.MAX_REQUIREMENT_LENGTH} characters",
-                )
-            }
+            checkLimit("Requirement", requirement.length, Limits.MAX_REQUIREMENT_LENGTH)
             val parsed = try {
                 Parser.parseRequirement(requirement)
             } catch (e: ParserSyntaxError) {

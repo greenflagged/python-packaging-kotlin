@@ -73,22 +73,14 @@ public class Tag(interpreter: String, abi: String, platform: String) {
             return Collections.unmodifiableSet(result)
         }
 
-        // Python's str.isidentifier(). Exact for ASCII; for other characters it uses the
-        // JVM's Unicode identifier classes, which can differ from Python's XID tables.
+        // Python's str.isidentifier(), restricted to ASCII. Python also accepts non-ASCII
+        // identifiers; this rejects them rather than guess at Python's XID tables. Real
+        // interpreter tags (py3, cp312, pp310, ...) are ASCII.
         private fun isPyIdentifier(s: String): Boolean {
             if (s.isEmpty()) return false
-            var i = 0
-            while (i < s.length) {
-                val cp = s.codePointAt(i)
-                val ok = if (cp < 0x80) {
-                    cp == '_'.code || Character.isLetter(cp) || (i > 0 && Character.isDigit(cp))
-                } else if (i == 0) {
-                    Character.isUnicodeIdentifierStart(cp)
-                } else {
-                    Character.isUnicodeIdentifierPart(cp) && !Character.isIdentifierIgnorable(cp)
-                }
+            for ((i, c) in s.withIndex()) {
+                val ok = c == '_' || c in 'a'..'z' || c in 'A'..'Z' || (i > 0 && c in '0'..'9')
                 if (!ok) return false
-                i += Character.charCount(cp)
             }
             return true
         }
@@ -153,15 +145,14 @@ public object Filenames {
      * Parses a wheel filename such as `requests-2.31.0-py3-none-any.whl`.
      *
      * @param validateOrder if true, require compressed tag set components to be sorted.
-     * @throws InvalidWheelFilenameException if the filename is malformed, or longer than
-     *   [Limits.MAX_FILENAME_LENGTH].
+     * @throws InvalidWheelFilenameException if the filename is malformed.
+     * @throws LimitExceededException if it is longer than [Limits.MAX_FILENAME_LENGTH], or its
+     *   version is longer than [Limits.MAX_VERSION_LENGTH].
      */
     @JvmStatic
     @JvmOverloads
     public fun parseWheel(filename: String, validateOrder: Boolean = false): WheelFilename {
-        if (filename.length > Limits.MAX_FILENAME_LENGTH) {
-            throw InvalidWheelFilenameException("Invalid wheel filename (longer than ${Limits.MAX_FILENAME_LENGTH} characters)")
-        }
+        checkLimit("Wheel filename", filename.length, Limits.MAX_FILENAME_LENGTH)
         if (!filename.endsWith(".whl")) {
             throw InvalidWheelFilenameException("Invalid wheel filename (extension must be '.whl'): ${pyRepr(filename)}")
         }
@@ -206,14 +197,13 @@ public object Filenames {
     /**
      * Parses an sdist filename such as `requests-2.31.0.tar.gz` or `foo-1.0.zip`.
      *
-     * @throws InvalidSdistFilenameException if the filename is malformed, or longer than
-     *   [Limits.MAX_FILENAME_LENGTH].
+     * @throws InvalidSdistFilenameException if the filename is malformed.
+     * @throws LimitExceededException if it is longer than [Limits.MAX_FILENAME_LENGTH], or its
+     *   version is longer than [Limits.MAX_VERSION_LENGTH].
      */
     @JvmStatic
     public fun parseSdist(filename: String): SdistFilename {
-        if (filename.length > Limits.MAX_FILENAME_LENGTH) {
-            throw InvalidSdistFilenameException("Invalid sdist filename (longer than ${Limits.MAX_FILENAME_LENGTH} characters)")
-        }
+        checkLimit("Sdist filename", filename.length, Limits.MAX_FILENAME_LENGTH)
         val stem = when {
             filename.endsWith(".tar.gz") -> filename.substring(0, filename.length - 7)
             filename.endsWith(".zip") -> filename.substring(0, filename.length - 4)

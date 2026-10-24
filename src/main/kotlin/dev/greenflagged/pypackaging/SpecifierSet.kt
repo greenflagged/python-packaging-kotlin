@@ -9,6 +9,7 @@ import dev.greenflagged.pypackaging.internal.pyCompare
 import dev.greenflagged.pypackaging.internal.pyLower
 import dev.greenflagged.pypackaging.internal.pyStrip
 import dev.greenflagged.pypackaging.internal.rangesArePrereleaseOnly
+import java.util.Collections
 import java.util.function.Function
 
 /**
@@ -29,7 +30,7 @@ import java.util.function.Function
  * converted to a string or compared.
  */
 public class SpecifierSet private constructor(
-    private val specs: List<Specifier>,
+    specs: List<Specifier>,
     private val hasArbitrary: Boolean,
     /**
      * The explicit pre-release setting this set was created with, or `null` for the
@@ -49,6 +50,8 @@ public class SpecifierSet private constructor(
             if (specs.any { it.prereleases == true }) return true
             return null
         }
+
+    private val specs: List<Specifier> = Collections.unmodifiableList(ArrayList(specs))
 
     /** The number of specifiers, counting duplicates. */
     public val size: Int get() = specs.size
@@ -79,14 +82,14 @@ public class SpecifierSet private constructor(
     /**
      * The intersection of this set and [other]: a version must satisfy both.
      *
-     * @throws IllegalArgumentException if one set explicitly allows pre-releases and the other
+     * @throws PackagingException if one set explicitly allows pre-releases and the other
      *   explicitly forbids them.
      */
     public fun and(other: SpecifierSet): SpecifierSet {
         val pre = when {
             prereleasesOverride == null || prereleasesOverride == other.prereleasesOverride -> other.prereleasesOverride
             other.prereleasesOverride == null -> prereleasesOverride
-            else -> throw IllegalArgumentException(
+            else -> throw PackagingException(
                 "Cannot combine SpecifierSets with True and False prerelease overrides.",
             )
         }
@@ -220,17 +223,14 @@ public class SpecifierSet private constructor(
          * Parses a comma-separated specifier set. Empty items and surrounding whitespace are
          * ignored, so `""` is the empty set.
          *
-         * @throws InvalidSpecifierException if any item is invalid, or [specifiers] is longer
-         *   than [Limits.MAX_SPECIFIER_LENGTH].
+         * @throws InvalidSpecifierException if any item is invalid.
+         * @throws LimitExceededException if [specifiers] is longer than [Limits.MAX_SPECIFIER_LENGTH],
+         *   or a version in it is longer than [Limits.MAX_VERSION_LENGTH].
          */
         @JvmStatic
         @JvmOverloads
         public fun parse(specifiers: String, prereleases: Boolean? = null): SpecifierSet {
-            if (specifiers.length > Limits.MAX_SPECIFIER_LENGTH) {
-                throw InvalidSpecifierException(
-                    "Invalid specifier: longer than ${Limits.MAX_SPECIFIER_LENGTH} characters",
-                )
-            }
+            checkLimit("Specifier set", specifiers.length, Limits.MAX_SPECIFIER_LENGTH)
             val specs = specifiers.split(',').map(::pyStrip).filter { it.isNotEmpty() }.map { Specifier.parse(it) }
             return SpecifierSet(specs, "===" in specifiers, prereleases)
         }

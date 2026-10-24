@@ -144,7 +144,7 @@ class DifferentialTest {
                 expect(kind, case, "validated", case["validated"], call { str(Names.canonicalize(input!!, validate = true)) })
                 expect(kind, case, "is_normalized", case["is_normalized"], JsonPrimitive(Names.isNormalized(input!!)))
             }
-            "wheel" -> expect(kind, case, "parse", case["parse"], call {
+            "wheel" -> if (!isNonAsciiInterpreterRejection(case)) expect(kind, case, "parse", case["parse"], call {
                 val w = Filenames.parseWheel(input!!)
                 buildJsonObject {
                     put("name", w.name)
@@ -258,6 +258,16 @@ class DifferentialTest {
             }
             mismatch(kind, case, "evaluate (marker '$marker'): $diffs")
         }
+    }
+
+    // Known difference: wheels with a non-ASCII interpreter tag are rejected (Python accepts
+    // any str.isidentifier()). Skip only when Python accepted such a wheel and Kotlin rejected it.
+    private fun isNonAsciiInterpreterRejection(case: JsonObject): Boolean {
+        val ok = case["parse"]?.jsonObject?.get("ok") as? JsonObject ?: return false
+        val interpreters = ok["tags"]!!.jsonArray.map { it.jsonPrimitive.content.substringBefore('-') }
+        if (interpreters.all { i -> i.all { it.code < 0x80 } }) return false
+        return runCatching { Filenames.parseWheel(case["input"]!!.jsonPrimitive.content) }
+            .exceptionOrNull() is dev.greenflagged.pypackaging.InvalidWheelFilenameException
     }
 
     private fun describe(v: Version): JsonElement = buildJsonObject {

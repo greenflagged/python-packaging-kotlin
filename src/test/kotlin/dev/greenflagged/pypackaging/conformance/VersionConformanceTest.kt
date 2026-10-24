@@ -1,6 +1,7 @@
 package dev.greenflagged.pypackaging.conformance
 
 import dev.greenflagged.pypackaging.InvalidVersionException
+import dev.greenflagged.pypackaging.LimitExceededException
 import dev.greenflagged.pypackaging.PreRelease
 import dev.greenflagged.pypackaging.PreReleaseKind
 import dev.greenflagged.pypackaging.Version
@@ -55,7 +56,8 @@ import java.math.BigInteger
  *
  * Adapted:
  *   TestVersion.test_oversized_version_raises_valueerror — Python raises ValueError from its int-size
- *     limit; this port rejects the (> Limits.MAX_VERSION_LENGTH) input with InvalidVersionException.
+ *     limit, not InvalidVersion; this port throws LimitExceededException (> Limits.MAX_VERSION_LENGTH),
+ *     which is likewise not an InvalidVersionException.
  *   Cache-warming tests (hash_with_warm_key_cache, gt_with_cached_other, ne/le_with_uncached_keys) keep
  *     their comparison assertions; there is no cache to warm.
  */
@@ -105,7 +107,7 @@ class VersionConformanceTest {
     // Adapted: Python raises ValueError("Exceeds the limit ...") from its int-size limit; see header.
     @TestFactory
     fun oversizedVersionRaisesValueerror() = factory("TestVersion.test_oversized_version_raises_valueerror") {
-        assertThrows(InvalidVersionException::class.java) { Version.parse(it.str("version")) }
+        assertThrows(LimitExceededException::class.java) { Version.parse(it.str("version")) }
     }
 
     @TestFactory

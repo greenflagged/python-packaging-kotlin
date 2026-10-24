@@ -1,5 +1,7 @@
 package dev.greenflagged.pypackaging
 
+import java.util.Collections
+
 /**
  * The values a [Marker] is evaluated against: the PEP 508 environment variables
  * (`python_version`, `sys_platform`, ...) plus `extra`, and the set-valued `extras`
@@ -24,11 +26,11 @@ public class MarkerEnvironment private constructor(
     private val strings: Map<String, String>,
     private val sets: Map<String, Set<String>>,
 ) {
-    /** The string-valued variables. */
-    public val values: Map<String, String> get() = strings
+    /** The string-valued variables. Unmodifiable. */
+    public val values: Map<String, String> = Collections.unmodifiableMap(strings)
 
-    /** The set-valued variables (`extras`, `dependency_groups`). */
-    public val setValues: Map<String, Set<String>> get() = sets
+    /** The set-valued variables (`extras`, `dependency_groups`). Unmodifiable. */
+    public val setValues: Map<String, Set<String>> = Collections.unmodifiableMap(sets)
 
     internal fun lookup(name: String): Any? = strings[name] ?: sets[name]
 
@@ -61,7 +63,7 @@ public class MarkerEnvironment private constructor(
         /** Sets a set-valued variable by its marker name, such as `extras`. */
         public fun setValues(name: String, values: Set<String>): Builder = apply {
             strings.remove(name)
-            sets[name] = values.toSet()
+            sets[name] = Collections.unmodifiableSet(LinkedHashSet(values))
         }
 
         /** Sets every entry of [values] as a string-valued variable. */

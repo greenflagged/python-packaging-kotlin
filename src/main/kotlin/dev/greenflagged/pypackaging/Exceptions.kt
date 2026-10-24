@@ -56,3 +56,16 @@ public class UnsortedTagsException(message: String) : InvalidTagException(messag
  * Python: `packaging.tags.TooManyTagsError`.
  */
 public class TooManyTagsException(message: String) : InvalidTagException(message)
+
+/**
+ * An input exceeded one of the [Limits]. Python's `packaging` has no such limits and
+ * would have processed the input, so this is neither "invalid" nor a normal result.
+ * It is thrown from every operation that meets an over-limit input, including
+ * [Specifier.contains], `filter` and [Marker.evaluate], so an over-limit value can never
+ * silently change a result. Treat it as "cannot decide", which for vetting means reject.
+ */
+public class LimitExceededException(
+    message: String,
+    /** The limit that was exceeded. */
+    public val limit: Int,
+) : PackagingException(message)

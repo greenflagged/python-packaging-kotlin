@@ -21,7 +21,14 @@ import dev.greenflagged.pypackaging.internal.pyRepr
  * marker.evaluate(env.toBuilder().extra("socks").build())
  * ```
  */
-public class Marker private constructor(internal val markers: MarkerList) {
+public class Marker private constructor(
+    internal val markers: MarkerList,
+    // Comparisons in the expression, counting repeats; bounds evaluate() and toString().
+    private val clauses: Long,
+) {
+    private constructor(markers: MarkerList) : this(markers, countClauses(markers))
+
+    private val string: String by lazy(LazyThreadSafetyMode.PUBLICATION) { format(markers) }
 
     /**
      * Evaluates this marker against [environment].
@@ -61,31 +68,50 @@ public class Marker private constructor(internal val markers: MarkerList) {
         return evaluateList(markers, env)
     }
 
-    /** A marker that holds when both this one and [other] do. */
-    public fun and(other: Marker): Marker = Marker(MarkerList(listOf(markers, "and", other.markers)))
+    /**
+     * A marker that holds when both this one and [other] do. Composition can nest to any
+     * depth, but the total number of comparisons is capped at [Limits.MAX_MARKER_CLAUSES].
+     *
+     * @throws LimitExceededException if the result would exceed that cap.
+     */
+    public fun and(other: Marker): Marker = combine("and", other)
 
-    /** A marker that holds when this one or [other] does. */
-    public fun or(other: Marker): Marker = Marker(MarkerList(listOf(markers, "or", other.markers)))
+    /**
+     * A marker that holds when this one or [other] does. See [and] for the size cap.
+     *
+     * @throws LimitExceededException if the result would exceed that cap.
+     */
+    public fun or(other: Marker): Marker = combine("or", other)
+
+    private fun combine(op: String, other: Marker): Marker {
+        val total = clauses + other.clauses
+        if (total > Limits.MAX_MARKER_CLAUSES) {
+            throw LimitExceededException(
+                "Combined marker would have $total comparisons, more than ${Limits.MAX_MARKER_CLAUSES}",
+                Limits.MAX_MARKER_CLAUSES,
+            )
+        }
+        return Marker(MarkerList(listOf(markers, op, other.markers)), total)
+    }
 
     override fun equals(other: Any?): Boolean = other is Marker && toString() == other.toString()
 
     override fun hashCode(): Int = toString().hashCode()
 
     /** The normalized marker, e.g. `python_version >= "3.8" and extra == "socks"`. */
-    override fun toString(): String = format(markers, true)
+    override fun toString(): String = string
 
     public companion object {
         /**
          * Parses a marker expression.
          *
-         * @throws InvalidMarkerException if [marker] is not valid, is longer than
-         *   [Limits.MAX_MARKER_LENGTH], or nests parentheses deeper than [Limits.MAX_MARKER_NESTING].
+         * @throws InvalidMarkerException if [marker] is not valid.
+         * @throws LimitExceededException if it is longer than [Limits.MAX_MARKER_LENGTH] or nests
+         *   parentheses deeper than [Limits.MAX_MARKER_NESTING].
          */
         @JvmStatic
         public fun parse(marker: String): Marker {
-            if (marker.length > Limits.MAX_MARKER_LENGTH) {
-                throw InvalidMarkerException("Marker is longer than ${Limits.MAX_MARKER_LENGTH} characters")
-            }
+            checkLimit("Marker", marker.length, Limits.MAX_MARKER_LENGTH)
             val parsed = try {
                 Parser.parseFullMarker(marker)
             } catch (e: ParserSyntaxError) {
@@ -131,58 +157,112 @@ public class Marker private constructor(internal val markers: MarkerList) {
             },
         )
 
-        private fun format(marker: Any, first: Boolean): String = when (marker) {
-            is MarkerList -> {
-                val only = marker.elements.singleOrNull()
-                if (only is MarkerList || only is MarkerItem) {
-                    format(only, first)
-                } else {
-                    val inner = marker.elements.joinToString(" ") { format(it, false) }
-                    if (first) inner else "($inner)"
+        // Python's `_format_marker`, written iteratively: markers built with and()/or()
+        // can nest arbitrarily deep, and recursion would overflow the stack.
+        private class FormatFrame(val list: MarkerList, val first: Boolean) {
+            var index = 0
+        }
+
+        private fun format(root: MarkerList): String {
+            val sb = StringBuilder()
+            val stack = ArrayDeque<FormatFrame>()
+            fun open(node: Any, first: Boolean) {
+                var n = node
+                // A one-element list holding an item or list formats as that element.
+                while (n is MarkerList) {
+                    val only = n.elements.singleOrNull()
+                    if (only is MarkerList || only is MarkerItem) n = only else break
+                }
+                when (n) {
+                    is MarkerItem -> sb.append(n.lhs.serialize()).append(' ').append(n.op).append(' ').append(n.rhs.serialize())
+                    is MarkerList -> {
+                        if (!first) sb.append('(')
+                        stack.addLast(FormatFrame(n, first))
+                    }
+                    else -> sb.append(n as String)
                 }
             }
-            is MarkerItem -> "${marker.lhs.serialize()} ${marker.op} ${marker.rhs.serialize()}"
-            else -> marker as String
+            open(root, true)
+            while (stack.isNotEmpty()) {
+                val frame = stack.last()
+                if (frame.index == frame.list.elements.size) {
+                    if (!frame.first) sb.append(')')
+                    stack.removeLast()
+                    continue
+                }
+                if (frame.index > 0) sb.append(' ')
+                open(frame.list.elements[frame.index++], false)
+            }
+            return sb.toString()
+        }
+
+        private fun countClauses(list: MarkerList): Long {
+            var count = 0L
+            val stack = ArrayDeque<MarkerList>()
+            stack.addLast(list)
+            while (stack.isNotEmpty()) {
+                for (e in stack.removeLast().elements) {
+                    if (e is MarkerItem) count++ else if (e is MarkerList) stack.addLast(e)
+                }
+            }
+            return count
         }
 
         private fun lookup(env: Map<String, Any>, key: String): Any =
             env[key] ?: throw UndefinedEnvironmentNameException(key)
 
-        private fun evaluateList(list: MarkerList, env: Map<String, Any>): Boolean {
-            val groups = ArrayList<ArrayList<Boolean>>()
-            groups.add(ArrayList())
-            for (element in list.elements) {
-                when (element) {
-                    is MarkerList -> groups.last().add(evaluateList(element, env))
-                    is MarkerItem -> {
-                        val key: String
-                        val lhsValue: Any
-                        val rhsValue: Any
-                        if (element.lhs is Variable) {
-                            key = element.lhs.value
-                            lhsValue = lookup(env, key)
-                            rhsValue = element.rhs.value
-                        } else {
-                            lhsValue = element.lhs.value
-                            key = element.rhs.value
-                            rhsValue = lookup(env, key)
-                        }
-                        if (lhsValue !is String) {
-                            throw UndefinedComparisonException(
-                                "Set-valued marker ${pyRepr(key)} can only be used with the membership form " +
-                                    "(e.g. \"<name>\" in $key); it cannot appear on the left-hand side of " +
-                                    "${pyRepr(element.op)}.",
-                            )
-                        }
-                        val (l, r) = normalize(lhsValue, rhsValue, key)
-                        groups.last().add(evalOp(l, element.op, r, key))
-                    }
-                    "or" -> groups.add(ArrayList())
+        // `_evaluate_markers`, written iteratively for the same reason as [format]. Every
+        // clause is evaluated, left to right, as in Python (no short-circuiting).
+        private class EvalFrame(val list: MarkerList) {
+            var index = 0
+            val groups = ArrayList<ArrayList<Boolean>>().apply { add(ArrayList()) }
+            fun result(): Boolean = groups.any { g -> g.all { it } }
+        }
+
+        private fun evaluateList(root: MarkerList, env: Map<String, Any>): Boolean {
+            val stack = ArrayDeque<EvalFrame>()
+            stack.addLast(EvalFrame(root))
+            while (true) {
+                val frame = stack.last()
+                if (frame.index == frame.list.elements.size) {
+                    stack.removeLast()
+                    val result = frame.result()
+                    if (stack.isEmpty()) return result
+                    stack.last().groups.last().add(result)
+                    continue
+                }
+                when (val element = frame.list.elements[frame.index++]) {
+                    is MarkerList -> stack.addLast(EvalFrame(element))
+                    is MarkerItem -> frame.groups.last().add(evaluateItem(element, env))
+                    "or" -> frame.groups.add(ArrayList())
                     "and" -> {}
                     else -> error("Unexpected marker $element")
                 }
             }
-            return groups.any { g -> g.all { it } }
+        }
+
+        private fun evaluateItem(element: MarkerItem, env: Map<String, Any>): Boolean {
+            val key: String
+            val lhsValue: Any
+            val rhsValue: Any
+            if (element.lhs is Variable) {
+                key = element.lhs.value
+                lhsValue = lookup(env, key)
+                rhsValue = element.rhs.value
+            } else {
+                lhsValue = element.lhs.value
+                key = element.rhs.value
+                rhsValue = lookup(env, key)
+            }
+            if (lhsValue !is String) {
+                throw UndefinedComparisonException(
+                    "Set-valued marker ${pyRepr(key)} can only be used with the membership form " +
+                        "(e.g. \"<name>\" in $key); it cannot appear on the left-hand side of " +
+                        "${pyRepr(element.op)}.",
+                )
+            }
+            val (l, r) = normalize(lhsValue, rhsValue, key)
+            return evalOp(l, element.op, r, key)
         }
 
         private fun normalize(lhs: String, rhs: Any, key: String): Pair<String, Any> {

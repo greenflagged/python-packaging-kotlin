@@ -4,7 +4,19 @@ updates:
     directory: /
     schedule:
       interval: weekly
+    # Let new releases age before they are proposed: build tooling is a supply-chain risk.
+    cooldown:
+      default-days: 7
+    groups:
+      actions:
+        patterns: ["*"]
+  # Gradle updates also need gradle/verification-metadata.xml regenerated; see CONTRIBUTING.md.
   - package-ecosystem: gradle
     directory: /
     schedule:
       interval: weekly
+    cooldown:
+      default-days: 7
+    groups:
+      gradle:
+        patterns: ["*"]

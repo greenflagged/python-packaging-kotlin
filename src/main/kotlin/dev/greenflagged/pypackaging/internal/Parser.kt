@@ -1,5 +1,6 @@
 package dev.greenflagged.pypackaging.internal
 
+import dev.greenflagged.pypackaging.LimitExceededException
 import dev.greenflagged.pypackaging.Limits
 
 /*
@@ -344,7 +345,10 @@ internal object Parser {
         val marker: Any
         if (t.check(Rule.LEFT_PARENTHESIS, peek = true)) {
             if (depth >= Limits.MAX_MARKER_NESTING) {
-                t.raiseSyntaxError("Marker expression nested more than ${Limits.MAX_MARKER_NESTING} levels deep")
+                throw LimitExceededException(
+                    "Marker expression nested more than ${Limits.MAX_MARKER_NESTING} levels deep",
+                    Limits.MAX_MARKER_NESTING,
+                )
             }
             marker = t.enclosingTokens(Rule.LEFT_PARENTHESIS, Rule.RIGHT_PARENTHESIS, "marker expression") {
                 t.consume(Rule.WS)

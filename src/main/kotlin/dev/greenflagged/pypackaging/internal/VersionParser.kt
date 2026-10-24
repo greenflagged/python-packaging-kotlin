@@ -1,6 +1,7 @@
 package dev.greenflagged.pypackaging.internal
 
 import dev.greenflagged.pypackaging.Limits
+import dev.greenflagged.pypackaging.checkLimit
 import dev.greenflagged.pypackaging.PreRelease
 import dev.greenflagged.pypackaging.PreReleaseKind
 import dev.greenflagged.pypackaging.Version
@@ -21,7 +22,7 @@ internal object VersionParser {
     private val POST_LETTERS = arrayOf("post", "rev", "r")
 
     fun parse(s: String): Version? {
-        if (s.length > Limits.MAX_VERSION_LENGTH) return null
+        checkLimit("Version", s.length, Limits.MAX_VERSION_LENGTH)
         val n = s.length
         var i = skipPyWhitespace(s, 0)
         if (i < n && (s[i] == 'v' || s[i] == 'V')) i++
@@ -108,7 +109,8 @@ internal object VersionParser {
 
     /** Parses a bare local label (`ubuntu-1`), as `Version.from_parts(local=...)` validates it. */
     fun parseLocalLabel(label: String): List<Any>? {
-        if (label.isEmpty() || label.length > Limits.MAX_VERSION_LENGTH || !isAsciiAlnumIgnoreCase(label[0])) return null
+        checkLimit("Local version label", label.length, Limits.MAX_VERSION_LENGTH)
+        if (label.isEmpty() || !isAsciiAlnumIgnoreCase(label[0])) return null
         if (scanLocal(label, 0) != label.length) return null
         return splitLocal(label)
     }

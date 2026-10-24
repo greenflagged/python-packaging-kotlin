@@ -47,6 +47,17 @@ case to `RegressionTest`.
 5. Rerun `tools/pypi-corpus/regenerate.py`.
 6. Update the version named in `README.md`, `NOTICE` and the KDoc.
 
+## Dependency verification
+
+`gradle/verification-metadata.xml` pins a SHA-256 for every plugin and library
+artifact the build resolves. After changing any dependency or plugin version,
+including Dependabot updates, regenerate it and review the diff:
+
+```bash
+./gradlew --write-verification-metadata sha256 build javadocJar testOnJava11 \
+  publishMavenPublicationToStagingRepository -Pversion=0.0.0 -Punsigned
+```
+
 ## Unicode tables
 
 `internal/PyUnicodeTables.kt` is generated. Regenerate it with

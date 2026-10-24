@@ -95,13 +95,35 @@ The library is meant to read package metadata from untrusted sources.
 | Risk | Mitigation |
 |---|---|
 | Regex backtracking (ReDoS) | No regular expressions. Each grammar is a single-pass scanner, so time is linear in input length. |
-| Oversized input | `Limits`: versions up to 1 KiB, specifier sets up to 16 KiB, markers and requirements up to 64 KiB, filenames up to 4 KiB. Longer input is rejected before any parsing. |
-| Deep nesting / stack overflow | Marker parentheses are limited to 100 levels. |
+| Oversized input | `Limits`: versions up to 1 KiB, specifier sets up to 16 KiB, markers and requirements up to 64 KiB, filenames up to 4 KiB. Longer input throws `LimitExceededException` before any parsing. |
+| Deep nesting / stack overflow | Marker parentheses are limited to 100 levels. Markers built with `and()`/`or()` nest to any depth, because formatting and evaluation are iterative, but are capped at 100,000 comparisons. |
 | Huge numbers | Components are `BigInteger`, which is exact. The length limit bounds their size. |
 | Combinatorial expansion | Compressed wheel tag sets expand to at most 4,096 tags. |
 
 `AdversarialInputTest` exercises the worst cases at each limit. Apart from the
-known differences below, inputs within the limits behave exactly as in Python. Report vulnerabilities as described in
+known differences below, inputs within the limits behave exactly as in Python.
+
+A limit never changes a result silently. Wherever an over-limit value turns up,
+`LimitExceededException` is thrown: in `parse`, `parseOrNull` and `isValid`, but
+also inside `contains`, `filter` and `Marker.evaluate`. For example, a marker
+comparing `python_version` with a 2,000-character version does not quietly fall
+back to string comparison. It is a `PackagingException`, but not an `Invalid*`
+one, because Python would have accepted the input.
+
+### Using this to vet untrusted metadata
+
+- Catch `PackagingException` and treat it as "do not approve". That covers
+  invalid input, limits, undefined marker variables and undefined comparisons.
+- Pass `prereleases = true` or `false` explicitly to `contains` and `filter`.
+  The 26.x defaults differ from older pip releases, and installers vary.
+- Evaluate markers once per target environment, and vet the union. A missing
+  variable throws rather than defaulting.
+- Use `Names.canonicalize(name, validate = true)`, or check `Names.isValid`.
+  Unvalidated names are only lowercased, as in Python, so non-ASCII lookalikes
+  survive. Compare wheel and sdist names against the project's validated name.
+- `Requirement.url` is not validated, as in Python. It can contain any scheme
+  and control characters. Reject direct references, or validate them yourself,
+  and never log them raw. Report vulnerabilities as described in
 [SECURITY.md](SECURITY.md).
 
 ## Conformance
@@ -130,8 +152,8 @@ Three independent checks, all run in CI:
 
 Each of these is deliberate:
 
-- **Input bounds.** Inputs over the size limits above are rejected. Python
-  accepts them.
+- **Input bounds.** Inputs over the size limits above throw
+  `LimitExceededException`. Python accepts them.
 - **Inputs Python accepts but cannot use.** These are rejected at parse time:
   - A marker string value containing both `'` and `"`. Python parses it but then
     fails to convert the marker back to a string.
@@ -153,9 +175,11 @@ Each of these is deliberate:
 - **Unicode.** Lowercasing, `\w`/`\b` word boundaries, whitespace and `repr()`
   use tables generated from Python's Unicode 16.0 data
   (`tools/gen_unicode_tables.py`). Results do not depend on the JVM's Unicode
-  version. Two narrow exceptions use the JVM's tables:
-  - `\N{name}` escapes in marker strings. Name aliases are rejected.
-  - Non-ASCII wheel interpreter tags (`str.isidentifier`).
+  version. Two narrow exceptions fail closed instead:
+  - `\N{name}` escapes in marker strings are resolved with the JVM's name table,
+    and name aliases are rejected.
+  - Wheel interpreter tags must be ASCII identifiers. Python accepts any
+    `str.isidentifier()`; real tags such as `py3` and `cp312` are ASCII.
 - **Not in this version.** These packaging APIs are not ported:
   - `VersionRange`, `SpecifierSet.to_range`, `is_subset`, `is_superset`,
     `is_disjoint`.

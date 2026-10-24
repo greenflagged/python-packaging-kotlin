@@ -168,6 +168,11 @@ signing {
             useInMemoryPgpKeys(signingKey.get(), signingPassword.orNull)
         }
     }
-    setRequired { !version.toString().endsWith("SNAPSHOT") && gradle.taskGraph.allTasks.any { it.name.startsWith("publish") } }
+    // Release builds sign. The release workflow stages with -Punsigned and signs in a
+    // separate job with gpg, so no build code runs while the signing key is present.
+    val unsigned = providers.gradleProperty("unsigned").isPresent
+    setRequired {
+        !unsigned && !version.toString().endsWith("SNAPSHOT") && gradle.taskGraph.allTasks.any { it.name.startsWith("publish") }
+    }
     sign(publishing.publications["maven"])
 }

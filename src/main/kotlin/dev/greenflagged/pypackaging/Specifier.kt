@@ -167,17 +167,14 @@ public class Specifier private constructor(
          * Parses a single specifier such as `>=1.0`.
          *
          * @param prereleases an explicit pre-release setting, or `null` for the default.
-         * @throws InvalidSpecifierException if [spec] is not a valid specifier or is longer than
-         *   [Limits.MAX_SPECIFIER_LENGTH].
+         * @throws InvalidSpecifierException if [spec] is not a valid specifier.
+         * @throws LimitExceededException if it is longer than [Limits.MAX_SPECIFIER_LENGTH], or its
+         *   version is longer than [Limits.MAX_VERSION_LENGTH].
          */
         @JvmStatic
         @JvmOverloads
         public fun parse(spec: String, prereleases: Boolean? = null): Specifier {
-            if (spec.length > Limits.MAX_SPECIFIER_LENGTH) {
-                throw InvalidSpecifierException(
-                    "Invalid specifier: longer than ${Limits.MAX_SPECIFIER_LENGTH} characters",
-                )
-            }
+            checkLimit("Specifier", spec.length, Limits.MAX_SPECIFIER_LENGTH)
             val start = skipPyWhitespace(spec, 0)
             val end = SpecifierScanner.scan(spec, start)
             if (end < 0 || skipPyWhitespace(spec, end) != spec.length) {

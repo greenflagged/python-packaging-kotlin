@@ -1,13 +1,20 @@
 # Releasing
 
-A release is a pushed tag such as `v0.1.0`. `.github/workflows/release.yml` then:
+A release is a pushed tag such as `v0.1.0`. `.github/workflows/release.yml` then runs two jobs:
 
-1. Builds the project and runs every test, including on a Java 11 runtime.
-2. Runs the differential test.
-3. Signs the artifacts.
-4. Uploads them to the Sonatype Central Portal.
+1. **build** has no secrets. It:
+   - checks that the tagged commit is on `main`;
+   - builds the project and runs every test, including on a Java 11 runtime;
+   - runs the differential test;
+   - stages unsigned artifacts.
+2. **publish** runs in the protected `maven-central` environment. It signs the
+   staged files with `gpg` and uploads them to the Sonatype Central Portal. It
+   runs no Gradle and checks out no code, so no build plugin or dependency runs
+   while the signing key is loaded.
 
 Nothing reaches Maven Central until someone presses **Publish** in the Portal.
+Tags must look like `v1.2.3`, optionally with `-alpha.N`, `-beta.N` or `-rc.N`.
+SNAPSHOT tags are rejected.
 
 ## One-time setup (repository owner)
 
@@ -38,10 +45,12 @@ gpg --keyserver keys.openpgp.org     --send-keys 0123456789ABCDEF  # then confir
 gpg --armor --export-secret-keys 0123456789ABCDEF > signing-key.asc   # for the secret below; delete afterwards
 ```
 
-The workflow signs with the primary key by default. To sign with a subkey, add
-the subkey's ID (the last 8 hex digits, e.g. `89ABCDEF`) as the optional secret
-`SIGNING_KEY_ID`, and still export the full key with `--export-secret-keys`.
-Publish the primary public key to the keyservers either way.
+The workflow signs with the primary key by default. To sign with a subkey
+instead, set the optional secret `SIGNING_KEY_ID` to the subkey's 16-hex-digit
+ID followed by `!`, e.g. `0123456789ABCDEF!`. The workflow passes it to
+`gpg --local-user`. Publish the primary public key to the keyservers either way.
+(For a local Gradle dry run, `SIGNING_KEY_ID` is instead Gradle's 8-hex-digit
+short ID, without the `!`.)
 
 ### 3. GitHub environment and secrets
 
@@ -50,6 +59,7 @@ In `greenflagged/python-packaging-kotlin` → **Settings**:
 1. **Environments → New environment** named `maven-central`.
    - Add **Required reviewers**: the people allowed to release.
    - Under **Deployment branches and tags**, allow only tags matching `v*`.
+   - Optionally, require signed tags (`git tag -s`) in the tag ruleset below.
 2. Add these **environment secrets** to `maven-central`, not as repository secrets:
 
    | Secret | Value |
@@ -111,6 +121,9 @@ For the exact bundle, sign a release version with any key:
    non-SNAPSHOT versions, so this fails without a key.
 3. Apply the workflow's `zip -x '*/maven-metadata.xml*'` step to see exactly
    what would be uploaded.
+
+The release workflow itself stages with `-Punsigned` and signs with `gpg` in its
+`publish` job.
 
 The bundle must contain, each with `.asc`, `.md5` and `.sha1`:
 

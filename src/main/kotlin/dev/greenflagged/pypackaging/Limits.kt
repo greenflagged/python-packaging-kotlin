@@ -28,9 +28,19 @@ public object Limits {
      */
     public const val MAX_MARKER_NESTING: Int = 100
 
+    /**
+     * Maximum number of comparisons in a marker built with [Marker.and] and [Marker.or],
+     * counting repeats. This bounds evaluation time and the length of `toString()`.
+     */
+    public const val MAX_MARKER_CLAUSES: Int = 100_000
+
     /** Maximum length of a wheel or sdist filename. */
     public const val MAX_FILENAME_LENGTH: Int = 4096
 
     /** Maximum number of tags a wheel filename's compressed tag set may expand to. */
     public const val MAX_WHEEL_TAGS: Int = 4096
+}
+
+internal fun checkLimit(what: String, size: Int, limit: Int) {
+    if (size > limit) throw LimitExceededException("$what is longer than $limit characters (got $size)", limit)
 }

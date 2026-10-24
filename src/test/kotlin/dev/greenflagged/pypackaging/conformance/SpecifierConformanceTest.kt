@@ -1,6 +1,7 @@
 package dev.greenflagged.pypackaging.conformance
 
 import dev.greenflagged.pypackaging.InvalidSpecifierException
+import dev.greenflagged.pypackaging.LimitExceededException
 import dev.greenflagged.pypackaging.Specifier
 import dev.greenflagged.pypackaging.SpecifierSet
 import dev.greenflagged.pypackaging.Version
@@ -421,12 +422,11 @@ class SpecifierConformanceTest {
             assertEquals(listOf("1.1"), ss.filter(listOf("1.0.post2", "1.0.post3", "1.1"), true))
         }
 
-        // Intentional difference 7: Python raises ValueError("Exceeds the limit ...") from its
-        // int-size limit on first use; Kotlin rejects the over-long version at parse time with
-        // InvalidSpecifierException (a ValueError analogue). The message is not matched.
+        // Python raises ValueError("Exceeds the limit ...") from its int-size limit on first use;
+        // Kotlin throws LimitExceededException at parse time. Neither is an InvalidSpecifier.
         @TestFactory
         fun containsOversizedVersionRaisesValueerror() = dyn("TestSpecifierSet.test_contains_oversized_version_raises_valueerror") {
-            assertThrows(InvalidSpecifierException::class.java) {
+            assertThrows(LimitExceededException::class.java) {
                 SpecifierSet.parse(it.str("specifier")).contains("1.0")
             }
         }

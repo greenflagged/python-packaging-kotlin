@@ -3,6 +3,7 @@ package dev.greenflagged.pypackaging
 import dev.greenflagged.pypackaging.internal.VersionParser
 import dev.greenflagged.pypackaging.internal.pyRepr
 import java.math.BigInteger
+import java.util.Collections
 
 /**
  * A [PEP 440](https://peps.python.org/pep-0440/) version, such as `1.0`, `2!3.4rc1.post2.dev3+local.7`.
@@ -34,7 +35,7 @@ public class Version internal constructor(
     public val epoch: BigInteger = epoch
 
     /** The release segment, e.g. `[1, 2, 0]` for `1.2.0`. Never empty. Trailing zeros are kept. */
-    public val release: List<BigInteger> = release
+    public val release: List<BigInteger> = Collections.unmodifiableList(ArrayList(release))
 
     /** The pre-release segment (`rc1` in `1.0rc1`), or `null`. */
     public val pre: PreRelease? = pre
@@ -46,7 +47,7 @@ public class Version internal constructor(
     public val dev: BigInteger? = dev
 
     // Local segments: each element is a lowercase String or a BigInteger.
-    internal val localParts: List<Any>? = local
+    internal val localParts: List<Any>? = local?.let { Collections.unmodifiableList(ArrayList(it)) }
 
     private val key: CmpKey by lazy(LazyThreadSafetyMode.PUBLICATION) { CmpKey.of(this) }
 
@@ -192,8 +193,9 @@ public class Version internal constructor(
          * `packaging` accepts (case-insensitive, `v` prefix, alternative separators,
          * surrounding whitespace).
          *
-         * @throws InvalidVersionException if [version] is not a valid version, or is
-         *   longer than [Limits.MAX_VERSION_LENGTH] characters.
+         * @throws InvalidVersionException if [version] is not a valid version.
+         * @throws LimitExceededException if it is longer than [Limits.MAX_VERSION_LENGTH]
+         *   characters. [parseOrNull] and [isValid] throw this too, rather than answer.
          */
         @JvmStatic
         public fun parse(version: String): Version =
