@@ -26,6 +26,7 @@ jobs:
     timeout-minutes: 45
     outputs:
       version: ${{ steps.version.outputs.version }}
+      manifest-sha256: ${{ steps.stage.outputs.manifest-sha256 }}
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
@@ -76,12 +77,18 @@ jobs:
             -Pdifferential.cases=build/differential/release.json --console=plain
 
       - name: Stage unsigned artifacts
+        id: stage
         env:
           VERSION: ${{ steps.version.outputs.version }}
         run: |
           rm -rf build/staging-deploy
           ./gradlew publishMavenPublicationToStagingRepository -Pversion="$VERSION" -Punsigned --console=plain
-          find build/staging-deploy -type f | sort
+          # A checksum manifest, whose own digest travels as a job output rather than
+          # through the artifact store, so publish can detect tampering in between.
+          (cd build/staging-deploy && find dev -type f | LC_ALL=C sort | xargs sha256sum) > staging-manifest.txt
+          mv staging-manifest.txt build/staging-deploy/
+          cat build/staging-deploy/staging-manifest.txt
+          echo "manifest-sha256=$(sha256sum build/staging-deploy/staging-manifest.txt | cut -d' ' -f1)" >> "$GITHUB_OUTPUT"
 
       - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
@@ -102,6 +109,17 @@ jobs:
         with:
           name: staging-deploy
           path: staging-deploy
+
+      - name: Verify the staged files
+        working-directory: staging-deploy
+        env:
+          EXPECTED: ${{ needs.build.outputs.manifest-sha256 }}
+        run: |
+          echo "$EXPECTED  staging-manifest.txt" | sha256sum --check --strict
+          sha256sum --check --strict staging-manifest.txt
+          # Nothing beyond what the manifest lists may be signed or uploaded.
+          diff <(find dev -type f | LC_ALL=C sort) <(cut -d' ' -f3- staging-manifest.txt)
+          rm staging-manifest.txt
 
       - name: Sign
         working-directory: staging-deploy

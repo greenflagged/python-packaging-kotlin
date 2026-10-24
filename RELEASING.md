@@ -80,6 +80,10 @@ In `greenflagged/python-packaging-kotlin` → **Settings**:
 
 ## Each release
 
+For the very first release, tag a release candidate first (`v0.1.0-rc.1`). It
+exercises the whole pipeline, signing and Portal validation included. Then drop
+that deployment in the Portal instead of publishing it.
+
 1. Make sure `main` is green in CI.
 2. Update `CHANGELOG.md`. The version in `gradle.properties` stays at the next
    `-SNAPSHOT`, because the workflow takes the release version from the tag.
