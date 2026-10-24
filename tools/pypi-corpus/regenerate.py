@@ -1,9 +1,9 @@
 """Re-derive the reference answers for the real-PyPI version corpus with the pinned packaging.
 
 The corpus (version strings published on PyPI, plus ordering pairs drawn from them)
-came from the Greenflagged registry's PEP 440 spike (registry issue #474). This
-script recomputes every answer with the packaging version installed, so the corpus
-test uses the same oracle as everything else.
+is produced by tools/pypi-corpus/collect.py. This script recomputes every answer
+with the packaging version installed, so the corpus test uses the same oracle as
+everything else.
 
 Usage: python3 -I tools/pypi-corpus/regenerate.py <corpus.json> src/test/resources/pypi-corpus.json.gz
 """
@@ -32,7 +32,7 @@ def main() -> None:
         pairs.append([a, b, (va > vb) - (va < vb)])
     changed = sum(1 for old, new in zip(corpus["pairs"], pairs) if old[2] != new[2])
     doc = {
-        "source": "Public PyPI version strings, collected for Greenflagged registry issue #474",
+        "source": "Public PyPI version strings, collected by tools/pypi-corpus/collect.py",
         "packaging_version": packaging.__version__,
         "rows": rows,
         "pairs": pairs,

@@ -30,5 +30,5 @@ Unicode License v3; its copyright and permission notice is in
 LICENSE-UNICODE.
 
 The test-only corpus in src/test/resources/pypi-corpus.json.gz consists of
-version strings published on the Python Package Index, collected for
-Greenflagged registry issue #474. It is not part of the published jar.
+version strings published on the Python Package Index, collected by
+tools/pypi-corpus/collect.py. It is not part of the published jar.
