@@ -17,6 +17,10 @@ updates:
       interval: weekly
     cooldown:
       default-days: 7
+    ignore:
+      # JUnit 6 needs Java 17, but the suite also runs on a Java 11 runtime (testOnJava11).
+      - dependency-name: "org.junit:junit-bom"
+        update-types: ["version-update:semver-major"]
     groups:
       gradle:
         patterns: ["*"]
