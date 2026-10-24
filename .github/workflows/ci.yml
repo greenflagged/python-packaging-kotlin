@@ -1,0 +1,85 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  schedule:
+    # Weekly differential run with a fresh random seed, so coverage keeps growing.
+    - cron: "17 6 * * 1"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build:
+    name: Build and test (JDK 21, plus Java 11 runtime)
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-java@b843ebf9b913146b38da2eaa7aeddf76074ae1ad # v6.1.0
+        with:
+          distribution: temurin
+          java-version: |
+            11
+            21
+      - uses: gradle/actions/setup-gradle@3f5f9adaf7d9fecd50b5935e54106014257a94e6 # v6.4.0
+      - name: Build, test, and run the tests again on Java 11
+        run: ./gradlew build javadocJar testOnJava11 -Porg.gradle.java.installations.fromEnv=JAVA_HOME_11_X64 --console=plain
+      - name: Upload test reports
+        if: failure()
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: test-reports
+          path: build/reports/tests/
+
+  differential:
+    name: Differential test against Python packaging
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-java@b843ebf9b913146b38da2eaa7aeddf76074ae1ad # v6.1.0
+        with:
+          distribution: temurin
+          java-version: 21
+      - uses: gradle/actions/setup-gradle@3f5f9adaf7d9fecd50b5935e54106014257a94e6 # v6.4.0
+      - uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0 # v7.1.0
+        with:
+          python-version: "3.14"
+      - name: Install the pinned Python oracle
+        run: python -m pip install --require-hashes --only-binary=":all:" -r tools/differential/requirements.txt
+      - name: Check the Unicode tables match this Python
+        run: |
+          python -I tools/gen_unicode_tables.py > build-unicode-tables.kt
+          diff -u src/main/kotlin/dev/greenflagged/pypackaging/internal/PyUnicodeTables.kt build-unicode-tables.kt
+      - name: Fixed seed
+        run: |
+          mkdir -p build/differential
+          python -I tools/differential/generate.py --seed 1 --count 3000 --out build/differential/fixed.json
+          ./gradlew differentialTest -Pdifferential.cases=build/differential/fixed.json --console=plain
+      - name: Fresh seed
+        env:
+          SEED: ${{ github.run_id }}
+        run: |
+          echo "Seed: $SEED (rerun locally with --seed $SEED)"
+          python -I tools/differential/generate.py --seed "$SEED" --count 3000 --out build/differential/fresh.json
+          ./gradlew differentialTest -Pdifferential.cases=build/differential/fresh.json --console=plain
+      - name: Upload failing cases
+        if: failure()
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: differential-cases
+          path: |
+            build/differential/
+            build/reports/tests/

@@ -75,6 +75,18 @@ val differentialTest = tasks.register<Test>("differentialTest") {
     }
 }
 
+// The library targets Java 11 bytecode; run the whole suite on a Java 11 runtime to prove it.
+val testOnJava11 = tasks.register<Test>("testOnJava11") {
+    description = "Runs the unit and conformance tests on a Java 11 runtime."
+    group = "verification"
+    testClassesDirs = sourceSets.test.get().output.classesDirs
+    classpath = sourceSets.test.get().runtimeClasspath
+    javaLauncher.set(javaToolchains.launcherFor { languageVersion.set(JavaLanguageVersion.of(11)) })
+    useJUnitPlatform {
+        excludeTags("differential")
+    }
+}
+
 val javadocJar = tasks.register<Jar>("javadocJar") {
     description = "Assembles a Javadoc jar from Dokka's Javadoc output."
     archiveClassifier.set("javadoc")
