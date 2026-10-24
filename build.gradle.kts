@@ -101,7 +101,7 @@ tasks.jar {
             "Implementation-Version" to project.version,
         )
     }
-    from(listOf("LICENSE", "NOTICE")) { into("META-INF") }
+    from(listOf("LICENSE", "NOTICE", "LICENSE-UNICODE")) { into("META-INF") }
 }
 
 publishing {
@@ -157,10 +157,16 @@ publishing {
 
 signing {
     // In CI the key comes from the SIGNING_KEY / SIGNING_PASSWORD secrets (see RELEASING.md).
-    val signingKey = providers.environmentVariable("SIGNING_KEY")
-    val signingPassword = providers.environmentVariable("SIGNING_PASSWORD")
+    // SIGNING_KEY_ID is optional: set it to sign with a subkey instead of the primary key.
+    val signingKey = providers.environmentVariable("SIGNING_KEY").filter { it.isNotBlank() }
+    val signingPassword = providers.environmentVariable("SIGNING_PASSWORD").filter { it.isNotBlank() }
+    val signingKeyId = providers.environmentVariable("SIGNING_KEY_ID").filter { it.isNotBlank() }
     if (signingKey.isPresent) {
-        useInMemoryPgpKeys(signingKey.get(), signingPassword.orNull)
+        if (signingKeyId.isPresent) {
+            useInMemoryPgpKeys(signingKeyId.get(), signingKey.get(), signingPassword.orNull)
+        } else {
+            useInMemoryPgpKeys(signingKey.get(), signingPassword.orNull)
+        }
     }
     setRequired { !version.toString().endsWith("SNAPSHOT") && gradle.taskGraph.allTasks.any { it.name.startsWith("publish") } }
     sign(publishing.publications["maven"])

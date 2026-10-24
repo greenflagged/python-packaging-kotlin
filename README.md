@@ -100,8 +100,8 @@ The library is meant to read package metadata from untrusted sources.
 | Huge numbers | Components are `BigInteger`, which is exact. The length limit bounds their size. |
 | Combinatorial expansion | Compressed wheel tag sets expand to at most 4,096 tags. |
 
-`AdversarialInputTest` exercises the worst cases at each limit. Inputs within the
-limits behave exactly as in Python. Report vulnerabilities as described in
+`AdversarialInputTest` exercises the worst cases at each limit. Apart from the
+known differences below, inputs within the limits behave exactly as in Python. Report vulnerabilities as described in
 [SECURITY.md](SECURITY.md).
 
 ## Conformance
@@ -111,17 +111,18 @@ Three independent checks, all run in CI:
 1. **pypa/packaging's test vectors.** Every parametrized case in upstream's
    `test_version.py`, `test_specifiers.py`, `test_requirements.py`,
    `test_markers.py` and `test_utils.py` is extracted mechanically into
-   `src/test/resources/pypa/` by `tools/harvest_pypa_vectors.py`, so nothing is
-   transcribed by hand. The Kotlin tests in `conformance/` port each upstream test
-   function's assertions. Each file's header lists the upstream tests that are
-   not ported, with the reason.
+   `src/test/resources/pypa/` by `tools/harvest_pypa_vectors.py`. The Kotlin
+   tests in `conformance/` port each upstream test function's assertions by
+   hand, along with upstream's non-parametrized literals (module-level sample
+   versions, expected error messages). Each file's header lists the upstream
+   tests that are not ported, with the reason.
 2. **Differential test.** `tools/differential/generate.py` builds random valid,
    near-valid and mutated inputs from the grammars. It records everything Python
    `packaging` 26.3 does with them: parsing, normalization, ordering, `contains`
    and `filter` with each pre-release setting, unsatisfiability, marker
    evaluation across environments, and exact error messages. `DifferentialTest`
    then requires identical results. CI runs a fixed seed and a fresh seed on
-   every push, and weekly.
+   every push to `main`, every pull request, and weekly.
 3. **Real PyPI versions.** 7,645 version strings published on PyPI and 202,916
    ordering pairs, with answers from Python.
 
@@ -142,6 +143,13 @@ Each of these is deliberate:
   printed or compared. Equality, hashing and `toString` are the same in both.
 - **Immutability.** Python's mutable `prereleases` setters become
   `withPrereleases(...)` copies.
+- **Equality with strings.** Python's `Specifier("==1.0") == "==1.0"` is true
+  because Python parses the string. Here `equals` only compares like types, as
+  the Java contract requires. Parse the string first.
+- **Nulls from Java.** Passing `null` where a `String` is expected throws
+  `NullPointerException`. Python's `Version(None)` raises `InvalidVersion`
+  instead. A `filterBy` key that returns `null` is handled as Python handles
+  `None`: the item is treated as an unparsable version.
 - **Unicode.** Lowercasing, `\w`/`\b` word boundaries, whitespace and `repr()`
   use tables generated from Python's Unicode 16.0 data
   (`tools/gen_unicode_tables.py`). Results do not depend on the JVM's Unicode
@@ -151,13 +159,18 @@ Each of these is deliberate:
 - **Not in this version.** These packaging APIs are not ported:
   - `VersionRange`, `SpecifierSet.to_range`, `is_subset`, `is_superset`,
     `is_disjoint`.
+  - `markers.default_environment()` (see *Marker environments*) and
+    `version.VERSION_PATTERN`. There is no regex to export.
   - `packaging.tags` beyond `Tag` and `parse_tag`.
-  - `packaging.metadata`, `pylock`, licenses.
+  - `packaging.metadata`, `pylock`, `dependency_groups`, `direct_url` and
+    `licenses`.
   - Pickling.
 
 ## License
 
-Apache-2.0. See [LICENSE](LICENSE) and [NOTICE](NOTICE). This is a derivative
+Apache-2.0. See [LICENSE](LICENSE) and [NOTICE](NOTICE). The generated Unicode
+tables are derived from Unicode data under [LICENSE-UNICODE](LICENSE-UNICODE).
+This is a derivative
 work of pypa/packaging (Apache-2.0 OR BSD-2-Clause, Copyright (c) Donald Stufft
 and individual contributors), whose test vectors are included with attribution.
 

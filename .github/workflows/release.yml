@@ -53,13 +53,14 @@ jobs:
           python -I tools/differential/generate.py --seed 1 --count 5000 --out build/differential/release.json
           ./gradlew build testOnJava11 differentialTest \
             -Pversion="$VERSION" \
-            -Porg.gradle.java.installations.fromEnv=JAVA_HOME_11_X64 \
+            -Dorg.gradle.java.installations.fromEnv=JAVA_HOME_11_X64 \
             -Pdifferential.cases=build/differential/release.json --console=plain
 
       - name: Stage signed artifacts
         env:
           SIGNING_KEY: ${{ secrets.SIGNING_KEY }}
           SIGNING_PASSWORD: ${{ secrets.SIGNING_PASSWORD }}
+          SIGNING_KEY_ID: ${{ secrets.SIGNING_KEY_ID }}
         run: ./gradlew publishMavenPublicationToStagingRepository -Pversion="$VERSION" --console=plain
 
       - name: Bundle
@@ -78,10 +79,13 @@ jobs:
           PUBLISHING_TYPE: ${{ vars.CENTRAL_PUBLISHING_TYPE || 'USER_MANAGED' }}
         run: |
           TOKEN="$(printf '%s:%s' "$CENTRAL_TOKEN_USERNAME" "$CENTRAL_TOKEN_PASSWORD" | base64 -w0)"
-          DEPLOYMENT_ID="$(curl --fail-with-body -sS -X POST \
+          if ! DEPLOYMENT_ID="$(curl --fail-with-body -sS -X POST \
             -H "Authorization: Bearer $TOKEN" \
             -F "bundle=@build/central-bundle.zip" \
-            "https://central.sonatype.com/api/v1/publisher/upload?name=python-packaging-$VERSION&publishingType=$PUBLISHING_TYPE")"
+            "https://central.sonatype.com/api/v1/publisher/upload?name=python-packaging-$VERSION&publishingType=$PUBLISHING_TYPE")"; then
+            echo "::error::Upload failed: $DEPLOYMENT_ID"
+            exit 1
+          fi
           echo "Deployment: $DEPLOYMENT_ID"
           for _ in $(seq 1 60); do
             STATE="$(curl --fail-with-body -sS -X POST -H "Authorization: Bearer $TOKEN" \

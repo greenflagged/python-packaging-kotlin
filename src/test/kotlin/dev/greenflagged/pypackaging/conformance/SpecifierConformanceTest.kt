@@ -24,7 +24,7 @@ import org.junit.jupiter.api.TestFactory
  * harvested into src/test/resources/pypa/test_specifiers.json; see NOTICE.
  *
  * Not ported:
- * - TestSpecifier.test_match_args — `__match_args__` / `_str` (Python-only).
+ * - TestSpecifier.test_match_args, TestSpecifierSet.test_match_args — `__match_args__` / `_str` (Python-only).
  * - TestSpecifier.test_specifiers_str_and_repr, TestSpecifierSet.test_specifiers_str_and_repr — the
  *   `repr()` half only; the `str()` half is ported.
  * - TestSpecifier.test_specifiers, TestSpecifier.test_invalid_version, TestSpecifier.test_specifier_filter,
@@ -39,10 +39,8 @@ import org.junit.jupiter.api.TestFactory
  * - TestIsUnsatisfiable.test_cache_reset_on_prereleases_change — only its first (non-cache) assertion is ported.
  * - TestIsUnsatisfiable.test_range_bounds_hashable_and_equal, test_range_bounds_repr,
  *   test_range_bounds_reject_foreign_comparison — internal `_to_ranges()` bound objects, repr, NotImplemented.
- * - test_pickle_* (15 functions) — pickling / `__setstate__`.
+ * - test_pickle_* (16 functions) — pickling / `__setstate__`.
  * - test_specifier_construction_is_lazy, test_specifierset_construction_is_lazy — internal laziness.
- * - test_filter_keyed_none_version_is_skipped — a `key=` returning None; Kotlin's `filterBy` key is
- *   non-null `String`, so the type system prevents it.
  * - test_specifierset_contains_reads_cached_bounds — the `_ranges = ()` override half (internal cache);
  *   the first, behavioural half is ported.
  * - TestSpecifierSetToRangeEquivalence (all 4 tests) — need `to_range()` (not in v1 scope).
@@ -428,7 +426,7 @@ class SpecifierConformanceTest {
         // InvalidSpecifierException (a ValueError analogue). The message is not matched.
         @TestFactory
         fun containsOversizedVersionRaisesValueerror() = dyn("TestSpecifierSet.test_contains_oversized_version_raises_valueerror") {
-            assertThrows(IllegalArgumentException::class.java) {
+            assertThrows(InvalidSpecifierException::class.java) {
                 SpecifierSet.parse(it.str("specifier")).contains("1.0")
             }
         }
@@ -656,6 +654,14 @@ class SpecifierConformanceTest {
     }
 
     // Module-level upstream tests.
+
+    @Test
+    fun filterKeyedNoneVersionIsSkipped() {
+        // A key returning null (Python: None) is skipped like any other invalid version.
+        val items = listOf(mapOf("v" to "1.0"), mapOf("v" to null), mapOf("v" to "2.0"))
+        val spec = SpecifierSet.parse(">=1")
+        assertEquals(listOf(items[0], items[2]), spec.filterBy(items, { it["v"] }))
+    }
 
     @Test
     fun filterMultirangePep440PrereleaseAfterFinal() {

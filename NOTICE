@@ -25,4 +25,10 @@ Derived material:
 
 The Unicode tables in src/main/kotlin/dev/greenflagged/pypackaging/internal/
 PyUnicodeTables.kt are generated from the Unicode Character Database as
-exposed by CPython's unicodedata module (Unicode License v3).
+exposed by CPython's unicodedata module. That data is used under the
+Unicode License v3; its copyright and permission notice is in
+LICENSE-UNICODE.
+
+The test-only corpus in src/test/resources/pypi-corpus.json.gz consists of
+version strings published on the Python Package Index, collected for
+Greenflagged registry issue #474. It is not part of the published jar.

@@ -112,10 +112,13 @@ public class Specifier private constructor(
     public fun filterVersions(versions: Iterable<Version>, prereleases: Boolean? = null): List<Version> =
         filterItems(versions, { it }, prereleases)
 
-    /** Like [filter], for arbitrary items whose version string is given by [key]. */
+    /**
+     * Like [filter], for arbitrary items whose version string is given by [key]. A `null`
+     * key result is treated as Python treats `None`: as the unparsable string `"None"`.
+     */
     @JvmOverloads
-    public fun <T> filterBy(items: Iterable<T>, key: Function<in T, String>, prereleases: Boolean? = null): List<T> =
-        filterItems(items, { key.apply(it) }, prereleases)
+    public fun <T> filterBy(items: Iterable<T>, key: Function<in T, String?>, prereleases: Boolean? = null): List<T> =
+        filterItems(items, { key.apply(it) ?: "None" }, prereleases)
 
     internal fun <T> filterItems(items: Iterable<T>, key: (T) -> Any, prereleases: Boolean?): List<T> {
         val pre = prereleases ?: resolvePrereleases(prereleasesOverride, this.prereleases)

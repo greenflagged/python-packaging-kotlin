@@ -38,8 +38,10 @@ gpg --keyserver keys.openpgp.org     --send-keys 0123456789ABCDEF  # then confir
 gpg --armor --export-secret-keys 0123456789ABCDEF > signing-key.asc   # for the secret below; delete afterwards
 ```
 
-The workflow signs with the primary key. If you want a signing subkey instead,
-export only that subkey with `--export-secret-subkeys <SUBKEY_ID>!`.
+The workflow signs with the primary key by default. To sign with a subkey, add
+the subkey's ID (the last 8 hex digits, e.g. `89ABCDEF`) as the optional secret
+`SIGNING_KEY_ID`, and still export the full key with `--export-secret-keys`.
+Publish the primary public key to the keyservers either way.
 
 ### 3. GitHub environment and secrets
 
@@ -56,6 +58,7 @@ In `greenflagged/python-packaging-kotlin` → **Settings**:
    | `SIGNING_PASSWORD` | The key's passphrase. |
    | `CENTRAL_TOKEN_USERNAME` | The username of the user token from step 1.5. |
    | `CENTRAL_TOKEN_PASSWORD` | The password of the user token from step 1.5. |
+   | `SIGNING_KEY_ID` | Optional. A subkey ID, to sign with that subkey instead of the primary key. |
 
 3. Optional: set the repository **variable** `CENTRAL_PUBLISHING_TYPE` to
    `AUTOMATIC` to publish as soon as validation passes. The default is
@@ -88,18 +91,26 @@ If validation fails, the job prints the Portal's reasons. Drop the failed
 deployment in the Portal, fix the cause, delete and re-push the tag (it never
 reached Central), and approve again.
 
-## Dry run (no credentials needed)
+## Dry run
 
-To see exactly what would be uploaded, stage an unsigned build locally:
+Without credentials, an unsigned SNAPSHOT build shows the approximate layout.
+SNAPSHOT files are timestamped and have no `.asc` signatures, and Central does
+not accept SNAPSHOTs:
 
 ```bash
+rm -rf build/staging-deploy
 ./gradlew publishMavenPublicationToStagingRepository -Pversion=0.1.0-SNAPSHOT
 find build/staging-deploy -type f
 ```
 
-To dry-run signing too, export `SIGNING_KEY` (ASCII-armored private key) and
-`SIGNING_PASSWORD`, then use a non-SNAPSHOT version. Signing is required for
-non-SNAPSHOT versions.
+For the exact bundle, sign a release version with any key:
+
+1. Export `SIGNING_KEY` (an ASCII-armored private key; a throwaway key is fine)
+   and `SIGNING_PASSWORD`.
+2. Run the same commands with `-Pversion=0.1.0`. Signing is required for
+   non-SNAPSHOT versions, so this fails without a key.
+3. Apply the workflow's `zip -x '*/maven-metadata.xml*'` step to see exactly
+   what would be uploaded.
 
 The bundle must contain, each with `.asc`, `.md5` and `.sha1`:
 
