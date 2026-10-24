@@ -54,9 +54,13 @@ artifact the build resolves. After changing any dependency or plugin version,
 including Dependabot updates, regenerate it and review the diff:
 
 ```bash
-./gradlew --write-verification-metadata sha256 build javadocJar testOnJava11 \
-  publishMavenPublicationToStagingRepository -Pversion=0.0.0 -Punsigned
+GRADLE_USER_HOME="$(mktemp -d)" ./gradlew --write-verification-metadata sha256 \
+  build javadocJar testOnJava11 publishMavenPublicationToStagingRepository -Pversion=0.0.0 -Punsigned
 ```
+
+Use an empty `GRADLE_USER_HOME`, as above. With a warm cache, Gradle skips some
+POM and BOM files that a fresh CI runner downloads, so they never get recorded
+and CI fails verification.
 
 ## Unicode tables
 
