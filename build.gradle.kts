@@ -6,8 +6,8 @@ plugins {
     `java-library`
     `maven-publish`
     signing
-    id("org.jetbrains.dokka") version "2.2.0"
-    id("org.jetbrains.dokka-javadoc") version "2.2.0"
+    id("org.jetbrains.dokka") version "2.3.0"
+    id("org.jetbrains.dokka-javadoc") version "2.3.0"
 }
 
 repositories {
@@ -40,7 +40,7 @@ tasks.withType<JavaCompile>().configureEach {
 dependencies {
     testImplementation(platform("org.junit:junit-bom:5.14.4"))
     testImplementation("org.junit.jupiter:junit-jupiter")
-    testImplementation("org.jetbrains.kotlinx:kotlinx-serialization-json:1.12.0")
+    testImplementation("org.jetbrains.kotlinx:kotlinx-serialization-json:1.13.0")
     testRuntimeOnly("org.junit.platform:junit-platform-launcher")
 }
 
